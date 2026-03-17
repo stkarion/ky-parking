@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>주차 메모</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #18181c;
+    --surface2: #222228;
+    --accent: #f5c842;
+    --accent2: #ff6b35;
+    --text: #f0ede6;
+    --muted: #6b6b72;
+    --saved: #3ddc84;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px 20px 120px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245,200,66,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 360px;
+    background: var(--surface);
+    border-radius: 28px;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    position: relative;
+  }
+
+  .header {
+    padding: 28px 28px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .car-icon {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+
+  .header-text h1 {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 20px; letter-spacing: -0.3px; color: var(--text);
+  }
+
+  .header-text p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* 연결 상태 배지 */
+  .sync-badge {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--muted);
+    background: var(--surface2);
+    padding: 5px 10px; border-radius: 20px;
+    flex-shrink: 0;
+  }
+  .sync-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .sync-dot.online { background: var(--saved); box-shadow: 0 0 6px var(--saved); }
+  .sync-dot.saving { background: var(--accent); animation: blink 0.6s infinite; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* 저자 표시 */
+  .saved-by {
+    font-size: 11px; color: var(--accent);
+    font-weight: 700; margin-bottom: 4px;
+  }
+
+  .saved-info {
+    margin: 20px 24px;
+    background: var(--surface2);
+    border-radius: 18px;
+    padding: 18px 20px;
+    display: none;
+    border: 1px solid rgba(61,220,132,0.2);
+    position: relative; overflow: hidden;
+  }
+  .saved-info::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--saved); border-radius: 4px 0 0 4px;
+  }
+  .saved-info.visible { display: block; animation: slide-in 0.3s ease; }
+
+  .saved-label {
+    font-size: 11px; color: var(--saved); font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  .saved-floor {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 42px; color: var(--text); line-height: 1; letter-spacing: -1px;
+  }
+  .saved-floor span {
+    font-size: 18px; color: var(--muted);
+    font-family: 'Noto Sans KR', sans-serif; font-weight: 300; margin-left: 6px;
+  }
+  .saved-detail { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .saved-time {
+    font-size: 11px; color: var(--muted);
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .empty-state {
+    margin: 20px 24px; background: var(--surface2);
+    border-radius: 18px; padding: 24px 20px; text-align: center;
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.4; }
+  .empty-text { font-size: 14px; color: var(--muted); }
+
+  .section { padding: 0 24px 20px; }
+  .section-label {
+    font-size: 11px; color: var(--muted); font-weight: 700;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    margin-bottom: 12px; margin-top: 20px;
+  }
+
+  .floor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+  .floor-btn {
+    aspect-ratio: 1; background: var(--surface2);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+    color: var(--text); font-family: 'Black Han Sans', sans-serif;
+    font-size: 18px; cursor: pointer; transition: all 0.15s ease;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 2px;
+  }
+  .floor-btn .sub {
+    font-family: 'Noto Sans KR', sans-serif; font-size: 9px;
+    font-weight: 300; color: var(--muted); letter-spacing: 0.5px;
+  }
+  .floor-btn:active { transform: scale(0.92); }
+  .floor-btn.selected { background: var(--accent); border-color: var(--accent); color: #0d0d0f; }
+  .floor-btn.selected .sub { color: rgba(0,0,0,0.5); }
+  .floor-btn.underground { color: #7eb8ff; }
+  .floor-btn.underground.selected { background: #2a5298; border-color: #4a7fd4; color: #fff; }
+  .floor-btn.underground.selected .sub { color: rgba(255,255,255,0.6); }
+
+  .memo-input {
+    width: 100%; background: var(--surface2);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+    padding: 14px 16px; color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif; font-size: 14px;
+    outline: none; resize: none; height: 70px; transition: border-color 0.2s;
+  }
+  .memo-input::placeholder { color: var(--muted); }
+  .memo-input:focus { border-color: rgba(245,200,66,0.4); }
+
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 12px 20px 28px;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    display: flex; flex-direction: column; gap: 8px; z-index: 100;
+  }
+
+  .save-btn {
+    width: 100%; padding: 16px; background: var(--accent); color: #0d0d0f;
+    border: none; border-radius: 16px;
+    font-family: 'Black Han Sans', sans-serif; font-size: 17px;
+    letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .save-btn:active { transform: scale(0.97); background: #e0b52e; }
+  .save-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .clear-btn {
+    width: 100%; padding: 12px; background: transparent;
+    color: var(--muted); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.2s; display: none;
+  }
+  .clear-btn.visible { display: block; }
+  .clear-btn:active { color: var(--accent2); border-color: var(--accent2); }
+
+  @keyframes pulse-save {
+    0% { box-shadow: 0 0 0 0 rgba(245,200,66,0.6); }
+    70% { box-shadow: 0 0 0 16px rgba(245,200,66,0); }
+    100% { box-shadow: 0 0 0 0 rgba(245,200,66,0); }
+  }
+  .save-pulse { animation: pulse-save 0.5s ease-out; }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 이름 설정 모달 */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; padding: 20px;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    background: var(--surface); border-radius: 24px;
+    padding: 28px 24px; width: 100%; max-width: 320px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .modal h2 {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 22px; margin-bottom: 8px;
+  }
+  .modal p { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+  .name-options { display: flex; gap: 10px; margin-bottom: 16px; }
+  .name-opt {
+    flex: 1; padding: 14px 8px; background: var(--surface2);
+    border: 2px solid rgba(255,255,255,0.08); border-radius: 14px;
+    color: var(--text); font-family: 'Black Han Sans', sans-serif;
+    font-size: 16px; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .name-opt:active, .name-opt.selected { border-color: var(--accent); color: var(--accent); }
+  .modal-confirm {
+    width: 100%; padding: 14px; background: var(--accent); color: #0d0d0f;
+    border: none; border-radius: 14px; font-family: 'Black Han Sans', sans-serif;
+    font-size: 16px; cursor: pointer;
+  }
+  .modal-confirm:disabled { opacity: 0.3; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<!-- 이름 선택 모달 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>👋 처음 오셨군요!</h2>
+    <p>나는 누구인가요?<br>저장할 때 누가 저장했는지 표시돼요.</p>
+    <div class="name-options">
+      <button class="name-opt" id="optHusband" onclick="selectName('남편')">🧑 남편</button>
+      <button class="name-opt" id="optWife" onclick="selectName('와이프')">👩 와이프</button>
+    </div>
+    <button class="modal-confirm" id="modalConfirm" onclick="confirmName()" disabled>시작하기</button>
+  </div>
+</div>
+
+<div class="card" id="card">
+  <div class="header">
+    <div class="car-icon">🚗</div>
+    <div class="header-text">
+      <h1>주차 메모</h1>
+      <p id="headerSub">내 차 어디 세웠지?</p>
+    </div>
+    <div class="sync-badge">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncText">연결 중</span>
+    </div>
+  </div>
+
+  <div class="saved-info" id="savedInfo">
+    <div class="saved-label">📍 현재 저장된 위치</div>
+    <div class="saved-by" id="savedBy"></div>
+    <div class="saved-floor" id="savedFloor">B2<span>층</span></div>
+    <div class="saved-detail" id="savedMemoText"></div>
+    <div class="saved-time" id="savedTime"></div>
+  </div>
+
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🅿️</div>
+    <div class="empty-text">저장된 주차 위치가 없어요</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">🏢 지상층</div>
+    <div class="floor-grid" id="aboveGrid"></div>
+    <div class="section-label" style="margin-top:16px">🔽 지하층</div>
+    <div class="floor-grid" id="belowGrid"></div>
+  </div>
+
+  <div class="section" style="padding-top:0">
+    <div class="section-label">📝 추가 메모 (선택)</div>
+    <textarea class="memo-input" id="memoInput" placeholder="예: A구역, 기둥번호 3B ..."></textarea>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <button class="save-btn" id="saveBtn" onclick="savePark()" disabled>🅿️ 주차 위치 저장</button>
+  <button class="clear-btn" id="clearBtn" onclick="clearPark()">🗑️ 저장 위치 지우기</button>
+</div>
+
+<!-- ✅ Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ====================================================
+  // 🔧 여기에 Firebase 설정값을 붙여넣으세요
+  // ====================================================
+  const firebaseConfig = {
+    apiKey:            "AIzaSyBUtSlWeTK0vuQZq3Xmhuc_O_6jzLBgHHM",
+    authDomain:        "kyparking-92e6e.firebaseapp.com",
+    databaseURL:       "https://kyparking-92e6e-default-rtdb.firebaseio.com",
+    projectId:         "kyparking-92e6e",
+    storageBucket:     "kyparking-92e6e.firebasestorage.app",
+    messagingSenderId: "845604675697",
+    appId:             "1:845604675697:web:efe00bb43f122f64c03bd0"
+  };
+  // ====================================================
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+  const parkRef = ref(db, 'parking/current');
+
+  let selectedFloor = null;
+  let myName = localStorage.getItem('myName') || null;
+
+  // ── 이름 모달 ────────────────────────────────────────
+  let chosenName = null;
+
+  window.selectName = (name) => {
+    chosenName = name;
+    document.querySelectorAll('.name-opt').forEach(b => b.classList.remove('selected'));
+    document.getElementById(name === '남편' ? 'optHusband' : 'optWife').classList.add('selected');
+    document.getElementById('modalConfirm').disabled = false;
+  };
+
+  window.confirmName = () => {
+    myName = chosenName;
+    localStorage.setItem('myName', myName);
+    document.getElementById('modalOverlay').classList.add('hidden');
+    document.getElementById('headerSub').textContent = myName + '으로 접속 중';
+  };
+
+  if (myName) {
+    document.getElementById('modalOverlay').classList.add('hidden');
+    document.getElementById('headerSub').textContent = myName + '으로 접속 중';
+  }
+
+  // ── 층 버튼 ──────────────────────────────────────────
+  function buildGrid(floors, containerId, isUnderground) {
+    const grid = document.getElementById(containerId);
+    floors.forEach(f => {
+      const btn = document.createElement('button');
+      btn.className = 'floor-btn' + (isUnderground ? ' underground' : '');
+      btn.dataset.floor = f;
+      btn.innerHTML = `${f}<span class="sub">층</span>`;
+      btn.onclick = () => {
+        document.querySelectorAll('.floor-btn.selected').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedFloor = f;
+        document.getElementById('saveBtn').disabled = false;
+      };
+      grid.appendChild(btn);
+    });
+  }
+
+  buildGrid([1,2,3,4,5,6,7,8], 'aboveGrid', false);
+  buildGrid(['B1','B2','B3','B4','B5','B6','B7','B8'], 'belowGrid', true);
+
+  // ── Firebase 실시간 수신 ─────────────────────────────
+  setSyncStatus('connecting');
+
+  onValue(parkRef, (snapshot) => {
+    setSyncStatus('online');
+    const data = snapshot.val();
+    renderSaved(data);
+  }, (error) => {
+    setSyncStatus('offline');
+  });
+
+  // ── 저장 ────────────────────────────────────────────
+  window.savePark = async () => {
+    if (!selectedFloor || !myName) return;
+    const memo = document.getElementById('memoInput').value.trim();
+    const now = new Date();
+    const timeStr = now.toLocaleDateString('ko-KR', {month:'short', day:'numeric'}) + ' ' +
+                    now.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+
+    setSyncStatus('saving');
+    await set(parkRef, { floor: selectedFloor, memo, time: timeStr, savedBy: myName });
+    setSyncStatus('online');
+
+    const card = document.getElementById('card');
+    card.classList.remove('save-pulse');
+    void card.offsetWidth;
+    card.classList.add('save-pulse');
+  };
+
+  // ── 지우기 ──────────────────────────────────────────
+  window.clearPark = async () => {
+    setSyncStatus('saving');
+    await remove(parkRef);
+    setSyncStatus('online');
+    selectedFloor = null;
+    document.querySelectorAll('.floor-btn.selected').forEach(b => b.classList.remove('selected'));
+    document.getElementById('memoInput').value = '';
+    document.getElementById('saveBtn').disabled = true;
+  };
+
+  // ── UI 렌더 ──────────────────────────────────────────
+  function renderSaved(data) {
+    const savedInfo  = document.getElementById('savedInfo');
+    const emptyState = document.getElementById('emptyState');
+    const clearBtn   = document.getElementById('clearBtn');
+
+    if (data) {
+      savedInfo.classList.add('visible');
+      emptyState.style.display = 'none';
+      clearBtn.classList.add('visible');
+
+      document.getElementById('savedBy').textContent   = data.savedBy ? `${data.savedBy === '와이프' ? data.savedBy + '가' : data.savedBy + '이'} 저장` : '';
+      document.getElementById('savedFloor').innerHTML  = `${data.floor}<span>층</span>`;
+      document.getElementById('savedMemoText').innerHTML = data.memo ? `📌 ${data.memo}` : '';
+      document.getElementById('savedTime').textContent = `⏱ ${data.time} 저장됨`;
+
+      // 저장된 층 버튼 하이라이트
+      document.querySelectorAll('.floor-btn.selected').forEach(b => b.classList.remove('selected'));
+      const btn = document.querySelector(`.floor-btn[data-floor="${data.floor}"]`);
+      if (btn) { btn.classList.add('selected'); selectedFloor = data.floor; document.getElementById('saveBtn').disabled = false; }
+    } else {
+      savedInfo.classList.remove('visible');
+      emptyState.style.display = 'block';
+      clearBtn.classList.remove('visible');
+    }
+  }
+
+  function setSyncStatus(status) {
+    const dot  = document.getElementById('syncDot');
+    const text = document.getElementById('syncText');
+    dot.className = 'sync-dot';
+    if (status === 'online')      { dot.classList.add('online');  text.textContent = '실시간 연결'; }
+    else if (status === 'saving') { dot.classList.add('saving');  text.textContent = '저장 중...'; }
+    else                          {                                text.textContent = '연결 중'; }
+  }
+</script>
+</body>
+</html>
